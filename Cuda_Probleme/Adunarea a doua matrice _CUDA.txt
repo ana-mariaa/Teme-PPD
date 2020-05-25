@@ -1,0 +1,124 @@
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+
+#include <iostream>
+
+//Implementati un program CUDA ce efectueaza adunarea a doua matrice
+// cu N linii si N coloane
+
+__global__ void matrix_matrix_add(float *A, float *B, float *C, int N)
+{
+	//7. Calculati valoarea celor 2 indici i si j utilizand variabilele predefinite
+	//blockDim, blockIdx, threshIdx, astfel incat fiecare thread sa corespunda
+	// unei pozitii din matrice
+	int i = blockDim.x * blockIdx.x + threadIdx.x;
+	int j = blockDim.y * blockIdx.y + threadIdx.y;
+
+	//8. Efectuati adunarea matricelor a si b si scrieti rez in c.
+	C[i*N + j] = A[i*N + j] + B[i*N + j];
+}
+
+void main()
+{
+	//numarul de linii / coloane
+	int N = 1024;
+
+	//matrice host
+	float *A_h;
+	float *B_h;
+	float *C_h; // rezultat
+
+	//size_t size = N*N*sizeof(float);
+
+	//1. Alocati memorie pe host pentru cele 3 matrice:
+	// Matricea este de N linii si N coloane si este alocata ca un
+	//bloc de memorie (o singura alocare de N*N elemente).
+	A_h = new float[N*N];
+	B_h = new float[N*N];
+	C_h = new float[N*N];
+
+	//2. Initializati cele doua matrice A_h si B_h astfel:
+	// - matricea A_h are peste tot 0, inafara de diagonala principala unde are 5
+	// - matricea B_h are peste tot 1, inafara de diagonala principala unde are 3
+
+	//Initializare A_h
+	for (int rows = 0; rows < N; ++rows)
+	{
+		for (int cols = 0; cols < N; ++cols)
+		{
+			A_h[rows * N + cols] = 0;
+			if (rows == cols)
+				A_h[rows * N + cols] = 5;
+		}
+	}
+
+	//Initializare B_h
+	for (int rows = 0; rows < N; ++rows)
+	{
+		for (int cols = 0; cols < N; ++cols)
+		{
+			if (cols == N - rows - 1)
+				B_h[rows * N + cols] = 3;
+
+			else
+				B_h[rows * N + cols] = 1;
+
+		}
+	}
+
+	//matrice device
+	float *A_d;
+	float *B_d;
+	float *C_d;
+
+	//3. Alocare memorie pe device
+	cudaMalloc((void**)&A_d, N*N * sizeof(float));
+	cudaMalloc((void**)&B_d, N*N * sizeof(float));
+	cudaMalloc((void**)&C_d, N*N * sizeof(float));
+
+	//4. Copiati continutul celor doua matrice A_h si B_h
+	// de pe host pe device
+	//!!! primul parametru este destinatia, al doilea este sursa
+	cudaMemcpy(A_d, A_h, N*N * sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(B_d, B_h, N*N * sizeof(float), cudaMemcpyHostToDevice);
+
+	//Numarul de thread-uri pe bloc
+	dim3 threadsPerBlock;
+	threadsPerBlock.x = 32;
+	threadsPerBlock.y = 32;
+	threadsPerBlock.z = 1;
+
+	//Numarul de blocuri
+	dim3 numBlocks;
+
+	//5. Calculati nr de blocuri astfel:
+	// - se obtine un grid 2D de thread-uri
+	// - se va lansa in executie cate un thread pt fiecare element din matrice -> deci in total N*N
+	numBlocks.x = N/32;
+	numBlocks.y = N/32;
+	numBlocks.z = 1;
+
+	//Se lanseaza in executie kernel-ul CUDA
+	matrix_matrix_add << <numBlocks, threadsPerBlock >> > (A_d, B_d, C_d, N);
+
+	//6. Copiati continutul matricei rezultat C de pe device pe host
+	//!!! primul parametru este destinatia, iar al doilea este sursa
+	cudaMemcpy(C_h, C_d, N*N * sizeof(float), cudaMemcpyDeviceToHost);
+
+	//Afisare suma
+	for (int rows = 0; rows < 32; ++rows)
+	{
+		for (int cols = 0; cols < 32; ++cols)
+		{
+			std::cout << C_h[rows*N + cols] << " ";
+		}
+		std::cout << "\n";
+	}
+
+	delete[] A_h;
+	delete[] B_h;
+	delete[] C_h;
+	cudaFree(A_d);
+	cudaFree(B_d);
+	cudaFree(C_d);
+}

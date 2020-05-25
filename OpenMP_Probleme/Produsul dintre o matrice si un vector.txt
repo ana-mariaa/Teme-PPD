@@ -1,0 +1,110 @@
+#include <iostream>
+#include <omp.h>
+#include <time.h>
+
+#include <iostream>
+#include <omp.h>
+#include <time.h>
+
+//Produsul dintre o matrice si un vector
+//Paralelizarea programului cu OpenMP
+
+void main()
+{
+	//nr. linii / coloane
+	int N = 4; //1000 trebuie sa fie
+
+	//3 matrice 
+	int *A; //matrice
+	int *b; //vector
+	int *c; //vector rezultat -> secvential
+	int *c1; //vector rezultat -> paralel
+
+	//1. Alocare memorie pentru matrice si vectori
+	A = new int[N*N];
+	b = new int[N];
+	c = new int[N];
+	c1 = new int[N];
+
+	//2. Initializare matrice A si vectori:
+	for (int rows = 0; rows < N; ++rows)
+	{
+		for (int cols = 0; cols < N; ++cols)
+		{
+			A[rows * N + cols] = 3;
+		}
+	}
+
+	for (int dim = 0; dim < N; ++dim)
+	{
+		b[dim] = 2;
+		c[dim] = 0;
+		c1[dim] = 0;
+	}
+
+	//verificare matrice A
+	for (int rows = 0; rows < N; ++rows)
+	{
+		for (int cols = 0; cols < N; ++cols)
+		{
+			std::cout << A[rows * N + cols] << " ";
+		}
+		std::cout << "\n";
+	}
+	std::cout << "\n";
+
+	//verificare vector b
+	for (int dim = 0; dim < N; ++dim)
+	{
+		std::cout << b[dim] << " ";
+	}
+	std::cout << "\n";
+
+	//3. Inmultirea matricei A cu vectorul b -> rezultatul in c
+	for (int rows = 0; rows < N; ++rows)
+	{
+		for (int cols = 0; cols < N; ++cols)
+		{
+			c[rows] += A[rows * N + cols] * b[cols];
+		}
+	}
+
+	//verificare matrice C
+	for (int dim = 0; dim < N; ++dim)
+	{
+		std::cout << c[dim] << " ";
+	}
+	std::cout << "\n";
+
+	//4. Inmultirea matrice A cu vector b -> varianta paralela -> rezultatul in c1
+	omp_set_num_threads(4);
+
+#pragma omp parallel
+	{
+		int id = omp_get_thread_num();
+		int nrThreads = omp_get_num_threads();
+		int iStart = id * N / nrThreads;
+		int iEnd = (id + 1)*N / nrThreads;
+
+		for (int rows = iStart; rows < iEnd; ++rows)
+		{
+			for (int cols = 0; cols < N; ++cols)
+			{		
+				c1[rows] += A[rows * N + cols] * b[cols];
+			}
+		}
+	}
+
+	//verificare matrice C1
+	for (int dim = 0; dim < N; ++dim)
+	{
+		std::cout << c1[dim] << " ";
+	}
+	std::cout << "\n";
+
+	//dealocare memorie
+	delete[] A;
+	delete b;
+	delete c;
+	delete c1;
+}

@@ -1,0 +1,172 @@
+#include <iostream>
+#include <omp.h>
+#include <time.h>
+
+#include <iostream>
+#include <omp.h>
+#include <time.h>
+
+//Inmultirea a doua matrice cu N linii si N coloane.
+//Paralelizarea programului cu OpenMP
+
+void main()
+{
+	//nr. linii / coloane
+	int N = 4; //1000 trebuie sa fie
+
+	//3 matrice 
+	int *A; //prima matrice
+	int *B; //a doua matrice
+	int *C; //matricea rezultat
+
+	//1. Alocare memorie pentru cele 3 matrice.
+	A = new int[N*N];
+	B = new int[N*N];
+	C = new int[N*N];
+
+	//2. Initializare matrice A si B astfel:
+	// - elementele de pe diagonala principala a matricei A au valoarea 3
+	// - elementele de pe diagonala secundara a matricei B au valoarea 2
+	for (int rows = 0; rows < N; ++rows)
+	{
+		for (int cols = 0; cols < N; ++cols)
+		{
+			A[rows * N + cols] = 0;
+			B[rows * N + cols] = 0;
+
+			if (rows == cols)
+				A[rows * N + cols] = 3;
+
+			if (cols == N - rows - 1)
+				B[rows * N + cols] = 2;
+		}
+	}
+
+	//verificare matrice A
+	for (int rows = 0; rows < N; ++rows)
+	{
+		for (int cols = 0; cols < N; ++cols)
+		{
+			std::cout << A[rows * N + cols] << " ";
+		}
+		std::cout << "\n";
+	}
+	std::cout << "\n";
+
+	//verificare matrice B
+	for (int rows = 0; rows < N; ++rows)
+	{
+		for (int cols = 0; cols < N; ++cols)
+		{
+			std::cout << B[rows * N + cols] << " ";
+		}
+		std::cout << "\n";
+	}
+	std::cout << "\n";
+
+	//3. Inmultirea celor doua matrice -> rezultatul in C
+	for (int rows = 0; rows < N; ++rows)
+		for (int cols = 0; cols < N; ++cols)
+			C[rows * N + cols] = 0;
+
+	for (int rows = 0; rows < N; ++rows)
+	{
+		for (int cols = 0; cols < N; ++cols)
+		{
+			for (int i = 0; i < N; ++i)
+			{
+				C[rows * N + cols] += A[rows * N + i] * B[i * N + cols];
+			}
+		}
+	}
+
+	//verificare matrice C
+	for (int rows = 0; rows < N; ++rows)
+	{
+		for (int cols = 0; cols < N; ++cols)
+		{
+			std::cout << C[rows * N + cols] << " ";
+		}
+		std::cout << "\n";
+	}
+	std::cout << "\n";
+
+	//4. Inmultirea celor doua matrice -> varianta paralela
+	//creez o matrice noua pentru rezultat C1
+	int *C1 = new int[N*N];
+
+	for (int rows = 0; rows < N; ++rows)
+		for (int cols = 0; cols < N; ++cols)
+			C1[rows * N + cols] = 0;
+
+	omp_set_num_threads(4);
+
+#pragma omp parallel
+	{
+		int id = omp_get_thread_num();
+		int nrThreads = omp_get_num_threads();
+		int iStart = id * N / nrThreads;
+		int iEnd = (id + 1)*N / nrThreads;
+
+		for (int rows = iStart; rows < iEnd; ++rows)
+		{
+			for (int cols = 0; cols < N; ++cols)
+			{
+				for (int i = 0; i < N; ++i)
+				{
+					C1[rows * N + cols] += A[rows * N + i] * B[i * N + cols];
+				}
+			}
+		}
+	}
+
+	//verificare matrice C1
+	for (int rows = 0; rows < N; ++rows)
+	{
+		for (int cols = 0; cols < N; ++cols)
+		{
+			std::cout << C1[rows * N + cols] << " ";
+		}
+		std::cout << "\n";
+	}
+	std::cout << "\n";
+
+	//4. Inmultirea celor doua matrice -> varianta paralela cu reductie
+	int *C2 = new int[N*N];
+
+	for (int rows = 0; rows < N; ++rows)
+		for (int cols = 0; cols < N; ++cols)
+			C2[rows * N + cols] = 0;
+
+#pragma omp parallel for reduction(+: C2[rows * N + cols])
+	{
+		for (int rows = 0; rows < N; ++rows)
+		{
+			for (int cols = 0; cols < N; ++cols)
+			{
+				for (int i = 0; i < N; ++i)
+				{
+					C2[rows * N + cols] += A[rows * N + i] * B[i * N + cols];
+				}
+			}
+		}
+	}
+
+	//verificare matrice C2
+	for (int rows = 0; rows < N; ++rows)
+	{
+		for (int cols = 0; cols < N; ++cols)
+		{
+			std::cout << C2[rows * N + cols] << " ";
+		}
+		std::cout << "\n";
+	}
+	std::cout << "\n";
+
+	//dealocare memorie
+	delete[] A;
+	delete[] B;
+	delete[] C;
+	delete[] C1;
+	delete[] C2;
+}

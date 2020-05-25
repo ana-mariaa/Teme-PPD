@@ -1,0 +1,136 @@
+#include <iostream>
+#include <omp.h>
+#include <time.h>
+
+//Scaderea a doua matrice de dimensiune N * N
+//Paralelizarea programului - paralel si reductie
+
+void main()
+{
+	int N = 4; //1000 trebuie
+
+	int *A;
+	int *B;
+	int *C; // rezultat scadere
+
+	//1. Alocare memorie pentru cele 3 matrice.
+	A = new int[N*N];
+	B = new int[N*N];
+	C = new int[N*N];
+
+	//2. Initializare matrice A si B astfel:
+	// - elementele de pe prima coloana au valoarea 1
+	// - elementele de pe a doua coloana au valoarea 2
+	// - elementele de pe a treia coloana au valoarea 3 etc
+
+	for (int rows = 0; rows < N; ++rows)
+	{
+		for (int cols = 0; cols < N; ++cols)
+		{
+			A[rows * N + cols] = cols + 1;
+			B[rows * N + cols] = cols + 1;
+		}
+	}
+
+	//verificare matrice A
+	for (int rows = 0; rows < N; ++rows)
+	{
+		for (int cols = 0; cols < N; ++cols)
+		{
+			std::cout << A[rows * N + cols] << " ";
+		}
+		std::cout << "\n";
+	}
+	std::cout << "\n";
+
+	//verificare matrice B
+	for (int rows = 0; rows < N; ++rows)
+	{
+		for (int cols = 0; cols < N; ++cols)
+		{
+			std::cout << B[rows * N + cols] << " ";
+		}
+		std::cout << "\n";
+	}
+	std::cout << "\n";
+
+	//3. Scaderea celor doua matrice -> rezultatul in C
+	for (int rows = 0; rows < N; ++rows)
+	{
+		for (int cols = 0; cols < N; ++cols)
+		{
+			C[rows * N + cols] = A[rows * N + cols] - B[rows * N + cols];
+		}
+	}
+
+	//verificare matrice C
+	for (int rows = 0; rows < N; ++rows)
+	{
+		for (int cols = 0; cols < N; ++cols)
+		{
+			std::cout << C[rows * N + cols] << " ";
+		}
+		std::cout << "\n";
+	}
+	std::cout << "\n";
+
+	//4. Paralelizare: scaderea celor doua matrice
+	//-> nu mai trebuie sa initializam matricea C cu 0, pentru ca rezultatul este deja 0 pentru fiecare element
+	omp_set_num_threads(4);
+
+#pragma omp parallel
+	{
+		int id = omp_get_thread_num();
+		int nrThreads = omp_get_num_threads();
+		int iStart = id * N / nrThreads;
+		int iEnd = (id + 1)*N / nrThreads;
+
+		for (int rows = iStart; rows < iEnd; ++rows)
+		{
+			for (int cols = 0; cols < N; ++cols)
+			{
+				C[rows * N + cols] = A[rows * N + cols] - B[rows * N + cols];
+			}
+		}
+	}
+
+	//verificare matrice C
+	for (int rows = 0; rows < N; ++rows)
+	{
+		for (int cols = 0; cols < N; ++cols)
+		{
+			std::cout << C[rows * N + cols] << " ";
+		}
+		std::cout << "\n";
+	}
+	std::cout << "\n";
+
+	//5. Paralelizare prin reductie -> scaderea celor doua matrice 
+	//-> nu stiu daca e bine ca nu prea inteleg din curs care-i treaba cu + sau *
+#pragma omp parallel for reduction(-: C[rows * N + cols])
+	{
+		for (int rows = 0; rows < N; ++rows)
+		{
+			for (int cols = 0; cols < N; ++cols)
+			{
+				C[rows * N + cols] = A[rows * N + cols] - B[rows * N + cols];
+			}
+		}
+	}
+	//verificare matrice C
+	for (int rows = 0; rows < N; ++rows)
+	{
+		for (int cols = 0; cols < N; ++cols)
+		{
+			std::cout << C[rows * N + cols] << " ";
+		}
+		std::cout << "\n";
+	}
+	std::cout << "\n";
+	
+	//dealocare memorie
+	delete[] A;
+	delete[] B;
+	delete[] C;
+
+}

@@ -1,0 +1,63 @@
+#include<iostream>
+#include<cuda_runtime.h>
+#include <device_launch_parameters.h>
+
+
+__global__ void mul(float *mat, float *mat1, float *mat2, int size)
+{
+	int i = blockDim.x * blockIdx.x + threadIdx.x;
+	int j = blockDim.y * blockIdx.y + threadIdx.y;
+
+	float sum = 0;
+	for (int k = 0; k < size; k++)
+	{
+		sum += mat1[i* size + k] * mat2[k*size + j];
+	}
+
+	mat[j*size+i] = sum;
+}
+	
+int main()
+{
+	int size = 1024;
+	
+	float *mat_h = new float[size*size];
+	float *mat1_h = new float[size*size];
+	float *mat2_h = new float[size*size];
+	
+	float *mat_d;
+	float *mat1_d;
+	float *mat2_d;
+	
+	cudaMalloc((void**)&mat_d, size*size*sizeof(float));
+	cudaMalloc((void**)&mat1_d, size*size*sizeof(float));
+	cudaMalloc((void**)&mat2_d, size*size*sizeof(float));
+	
+	for (int i = 0; i < size; i++)
+	{
+		for (int j = 0; j < size; j++)
+		{
+			mat1_h[j * size + i] = 1;
+			mat2_h[j * size + i] = 1;
+		}
+	}
+
+	cudaMemcpy(mat1_d, mat2_h, size*size*sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(mat2_d, mat2_h, size*size*sizeof(float), cudaMemcpyHostToDevice);
+
+	dim3 threads_per_block(16, 16, 1);
+	dim3 blocks(size/16, size/16, 1);
+
+	mul << <blocks, threads_per_block >> >(mat_d, mat1_d, mat2_d, size);
+	
+	cudaMemcpy(mat_h, mat_d, size*size*sizeof(float), cudaMemcpyDeviceToHost);
+	
+	delete[] mat_h;
+	delete[] mat1_h;
+	delete[] mat2_h;
+	cudaFree(mat_d);
+	cudaFree(mat1_d);
+	cudaFree(mat2_d);
+	
+	return 0;
+}

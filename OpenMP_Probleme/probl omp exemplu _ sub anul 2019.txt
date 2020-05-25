@@ -1,0 +1,70 @@
+#include <iostream>
+#include <omp.h>
+#include <time.h>
+
+//Implementati un program ce calculeaza suma liniilor unei matrici cu N linii si N coloane
+//si apoi paralelizati utilizand omp
+
+int main()
+{
+	int N = 3;
+
+	int *a;
+	int *sum;
+
+	//1. Alocati memorie pt matrice si vector.
+	//matricea are n linii n coloane
+	//sum va avea n elemente
+	a = new int[N*N];
+	sum = new int[N];
+
+	//2. initializati matricea astfel:
+	//elem de pe prima coloana au val 1, elem de pe a doua col au 2 etc
+	for (int rows = 0; rows < N; ++rows)
+		for (int cols = 0; cols < N; ++cols)
+		{
+			a[rows * N + cols] = cols + 1;
+			std::cout << a[rows*N + cols] << " ";
+		}
+
+	//3. implementati alg de calcul a sumei fiecarei linii si scrieti rez in vectorul sum
+	//suma liniei i va fi scrisa la pozitia i
+	for (int rows = 0; rows < N; ++rows) //dim pt sum
+	{
+		sum[rows] = 0;
+
+		for (int cols = 0; cols < N; ++cols)
+		{
+			sum[rows] += a[rows + cols];
+		}
+		
+		std::cout << sum[rows] << " ";
+	}
+	std::cout << std::endl;
+
+	//4. implementati varianta paralela de la 3 a i doar bucla for exterioara sa distribuie mai multe fire de executie
+	omp_set_num_threads(4);
+
+	#pragma omp parallel 
+	{
+		int id = omp_get_thread_num();
+		int nrThreads = omp_get_num_threads();
+		int iStart = id * N / nrThreads;
+		int iEnd = (id + 1)*N / nrThreads;
+
+		for (int i = iStart; i < iEnd; ++i)
+		{
+			sum[i] = 0;
+			for (int cols = 0; cols < N; ++cols)
+			{
+				sum[i] += a[i + cols];
+			}
+			std::cout << sum[i] << " ";
+		}
+		std::cout << std::endl;
+	}
+	
+	//dealocare memorie
+	delete[] a;
+	delete[] sum;
+}
